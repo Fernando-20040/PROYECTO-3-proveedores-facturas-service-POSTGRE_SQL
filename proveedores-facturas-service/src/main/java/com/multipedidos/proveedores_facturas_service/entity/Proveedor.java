@@ -6,9 +6,10 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Entity
-@Data
 @Table(name = "proveedores")
+@Data
 public class Proveedor {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -16,6 +17,7 @@ public class Proveedor {
     @NotBlank(message = "El nombre no puede estar vacío")
     private String nombre;
 
-    @Email(message = "El correo debe tener un formato válido")
+    @Email(message = "Correo no válido")
+    @NotBlank(message = "El correo no puede estar vacío")
     private String correo;
 }

@@ -2,6 +2,7 @@ package com.multipedidos.proveedores_facturas_service.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.time.LocalDate;
 import java.util.List;
 
 @Entity
@@ -14,9 +15,11 @@ public class Factura {
 
     private Long proveedorId;
 
-    private double totalFactura;
+    private double monto;
 
-    // No se persiste: viene del microservicio de pedidos
+    private LocalDate fecha = LocalDate.now();
+
+    // No persistimos los pedidos, vienen del microservicio A
     @Transient
-    private List<PedidoReferencia> pedidos;
+    private List<com.multipedidos.proveedores_facturas_service.dto.PedidoReferencia> pedidos;
 }

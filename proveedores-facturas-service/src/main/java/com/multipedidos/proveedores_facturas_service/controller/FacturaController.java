@@ -1,13 +1,15 @@
 package com.multipedidos.proveedores_facturas_service.controller;
 
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
 import com.multipedidos.proveedores_facturas_service.entity.Factura;
 import com.multipedidos.proveedores_facturas_service.service.FacturaService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/facturas")
-@CrossOrigin("*")
+@CrossOrigin(origins = "http://localhost:3000")
 public class FacturaController {
 
     private final FacturaService facturaService;
@@ -21,13 +23,18 @@ public class FacturaController {
         return facturaService.listarFacturas();
     }
 
-    @GetMapping("/{id}")
-    public Factura obtener(@PathVariable Long id) {
-        return facturaService.obtenerFactura(id).orElse(null);
+    @GetMapping("/detalle/{id}")
+    public ResponseEntity<Factura> obtenerDetalle(@PathVariable Long id) {
+        Factura factura = facturaService.obtenerFacturaConPedidos(id);
+        if (factura == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(factura);
     }
 
     @PostMapping
-    public Factura crear(@RequestBody Factura factura) {
-        return facturaService.guardarFactura(factura);
+    public ResponseEntity<Factura> crear(@RequestBody Factura factura) {
+        Factura nueva = facturaService.guardarFactura(factura);
+        return ResponseEntity.ok(nueva);
     }
 }

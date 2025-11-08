@@ -5,9 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class ProveedoresFacturasServiceApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(ProveedoresFacturasServiceApplication.class, args);
-	}
-
+    public static void main(String[] args) {
+        SpringApplication.run(ProveedoresFacturasServiceApplication.class, args);
+    }
 }
