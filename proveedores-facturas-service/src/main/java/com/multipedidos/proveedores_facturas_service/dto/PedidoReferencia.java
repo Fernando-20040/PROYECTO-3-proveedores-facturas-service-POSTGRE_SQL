@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class PedidoReferencia {
-    private Long id;        // id del pedido
-    private Long clienteId; // cliente relacionado
-    private double total;   // total calculado
-    private String nombre; // 🔹 nombre del producto o pedido
 
+    private Long pedidoId;     // ID del pedido
+    private Long clienteId;    // ID del cliente que hizo el pedido
+    private String nombre;     // Nombre o descripción del pedido
+    private double total;      // Total del pedido
 }

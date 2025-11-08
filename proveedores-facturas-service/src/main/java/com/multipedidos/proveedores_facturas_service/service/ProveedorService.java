@@ -1,10 +1,11 @@
 package com.multipedidos.proveedores_facturas_service.service;
 
-import org.springframework.stereotype.Service;
-import java.util.List;
-import java.util.Optional;
 import com.multipedidos.proveedores_facturas_service.entity.Proveedor;
 import com.multipedidos.proveedores_facturas_service.repository.ProveedorRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProveedorService {
@@ -25,5 +26,19 @@ public class ProveedorService {
 
     public Proveedor guardarProveedor(Proveedor proveedor) {
         return proveedorRepository.save(proveedor);
+    }
+
+    public Proveedor actualizarProveedor(Long id, Proveedor proveedor) {
+        Proveedor existente = proveedorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado."));
+        existente.setNombre(proveedor.getNombre());
+        existente.setCorreo(proveedor.getCorreo());
+        existente.setTelefono(proveedor.getTelefono());
+        existente.setDireccion(proveedor.getDireccion());
+        return proveedorRepository.save(existente);
+    }
+
+    public void eliminarProveedor(Long id) {
+        proveedorRepository.deleteById(id);
     }
 }

@@ -37,4 +37,15 @@ public class FacturaController {
         Factura nueva = facturaService.guardarFactura(factura);
         return ResponseEntity.ok(nueva);
     }
+
+    // 🔹 Nueva ruta para anular factura con motivo
+    @PutMapping("/{id}/anular")
+    public ResponseEntity<?> anularFactura(@PathVariable Long id, @RequestParam String motivo) {
+        try {
+            Factura anulada = facturaService.anularFactura(id, motivo);
+            return ResponseEntity.ok(anulada);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }
