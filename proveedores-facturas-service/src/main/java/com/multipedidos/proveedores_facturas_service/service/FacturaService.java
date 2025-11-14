@@ -1,14 +1,17 @@
 package com.multipedidos.proveedores_facturas_service.service;
 
+import com.multipedidos.common.OperacionesNegocio;
 import com.multipedidos.proveedores_facturas_service.client.PedidoClient;
+import com.multipedidos.proveedores_facturas_service.dto.FacturaInput;
 import com.multipedidos.proveedores_facturas_service.dto.PedidoReferencia;
 import com.multipedidos.proveedores_facturas_service.entity.Factura;
 import com.multipedidos.proveedores_facturas_service.repository.FacturaRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.Arrays;
 
 @Service
 public class FacturaService {
@@ -21,120 +24,134 @@ public class FacturaService {
         this.pedidoClient = pedidoClient;
     }
 
-    // 🔹 Listar todas las facturas, incluyendo los pedidos asociados
     public List<Factura> listarFacturas() {
-        List<Factura> facturas = facturaRepository.findAll();
-        for (Factura factura : facturas) {
-            try {
-                List<PedidoReferencia> pedidos = pedidoClient.obtenerPedidosPorCliente(factura.getProveedorId());
-                factura.setPedidos((pedidos != null && !pedidos.isEmpty()) ? pedidos : null);
-            } catch (Exception e) {
-                System.err.println("⚠️ Error al obtener pedidos para factura " + factura.getId() + ": " + e.getMessage());
-                factura.setPedidos(null);
-            }
-        }
-        return facturas;
+        return facturaRepository.findAll();
     }
 
-    // 🔹 Obtener factura con sus pedidos asociados
+    /* ============================================================
+       🔥 AQUI VIENE LA PARTE CORREGIDA: RECONSTRUIR PEDIDOS ASOCIADOS
+       ============================================================ */
     public Factura obtenerFacturaConPedidos(Long id) {
-        Optional<Factura> optFactura = facturaRepository.findById(id);
-        if (!optFactura.isPresent()) return null;
+        Factura factura = facturaRepository.findById(id).orElse(null);
+        if (factura == null) return null;
 
-        Factura factura = optFactura.get();
-        try {
-            List<PedidoReferencia> pedidos = pedidoClient.obtenerPedidosPorCliente(factura.getProveedorId());
-            factura.setPedidos((pedidos != null && !pedidos.isEmpty()) ? pedidos : null);
-        } catch (Exception e) {
-            System.err.println("⚠️ Error al obtener pedidos asociados a la factura " + id + ": " + e.getMessage());
-            factura.setPedidos(null);
+        String idsTexto = factura.getPedidoIds();
+
+        if (idsTexto != null && !idsTexto.isBlank()) {
+
+            List<Long> ids = Arrays.stream(idsTexto.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Long::valueOf)
+                    .collect(Collectors.toList());
+
+            List<PedidoReferencia> pedidos = ids.stream()
+                    .map(pedidoClient::obtenerPedidoPorId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            factura.setPedidos(pedidos);
+
+        } else {
+            factura.setPedidos(List.of());
         }
 
         return factura;
     }
 
-    // 🔹 Crear nueva factura (marca pedidos como FACTURADOS)
-    public Factura guardarFactura(Factura factura) {
-        if (factura.getProveedorId() == null) {
+    /* ============================================================
+       🔥 AQUI SE AGREGA GUARDAR pedidoIds AL MOMENTO DE CREAR FACTURA
+       ============================================================ */
+    public Factura guardarFactura(FacturaInput input) {
+        if (input.getProveedorId() == null)
             throw new IllegalArgumentException("Debe indicar un proveedor.");
-        }
 
-        Long proveedorId = factura.getProveedorId();
-        System.out.println("🔎 Buscando pedidos asociados al proveedor/cliente " + proveedorId + " ...");
-
-        List<PedidoReferencia> pedidos = pedidoClient.obtenerPedidosPorCliente(proveedorId);
-        double total = 0.0;
-
-        if (pedidos != null && !pedidos.isEmpty()) {
-            factura.setPedidos(pedidos);
-            total = pedidos.stream().mapToDouble(PedidoReferencia::getTotal).sum();
-            System.out.println("✅ Se encontraron " + pedidos.size() + " pedidos. Total calculado: Q" + total);
-        } else {
-            if (factura.getMonto() == 0) {
-                throw new IllegalArgumentException("Debe ingresar un monto manual si no hay pedidos asociados.");
-            }
-            factura.setPedidos(null);
-            total = factura.getMonto();
-            System.out.println("⚠️ Factura manual creada con monto Q" + total);
-        }
-
-        factura.setMonto(total);
+        Factura factura = new Factura();
+        factura.setProveedorId(input.getProveedorId());
         factura.setFecha(LocalDate.now());
         factura.setEstado("ACTIVA");
 
-        Factura guardada = facturaRepository.save(factura);
-        guardada.setPedidos(factura.getPedidos());
+        double subtotal = 0;
+        double descuentoPorcentaje = Optional.ofNullable(input.getDescuentoPorcentaje()).orElse(0.0);
+        List<PedidoReferencia> pedidosAsociados = new ArrayList<>();
 
-        // 🔹 Marcar pedidos como FACTURADOS
-        try {
-            if (pedidos != null && !pedidos.isEmpty()) {
-                for (PedidoReferencia ref : pedidos) {
-                    if (ref.getPedidoId() != null) {
-                        pedidoClient.actualizarEstadoPedido(ref.getPedidoId(), "FACTURADO");
-                        System.out.println("🧾 Pedido " + ref.getPedidoId() + " marcado como FACTURADO.");
-                    }
+        // ======== SI VIENEN PEDIDOS SELECCIONADOS (AUTO) ========
+        if (input.getPedidosIds() != null && !input.getPedidosIds().isEmpty()) {
+
+            for (Long pedidoId : input.getPedidosIds()) {
+                PedidoReferencia ref = pedidoClient.obtenerPedidoPorId(pedidoId);
+                if (ref != null) {
+                    pedidosAsociados.add(ref);
+                    subtotal += ref.getTotal();
                 }
             }
-        } catch (Exception e) {
-            System.err.println("⚠️ No se pudo actualizar el estado de los pedidos: " + e.getMessage());
+
+            // 🔥 GUARDA LOS IDS EN LA FACTURA (EJ: "8,9,10")
+            String idsTexto = input.getPedidosIds().stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+            factura.setPedidoIds(idsTexto);
+
+        }
+        // ======== SI VIENE MONTO MANUAL (MANUAL) ========
+        else if (input.getMontoManual() != null && input.getMontoManual() > 0) {
+            subtotal = input.getMontoManual();
+            factura.setPedidoIds(null);
+        }
+        // ======== ERROR SI NO VINO NADA ========
+        else {
+            throw new IllegalArgumentException("Debe seleccionar pedidos o indicar monto manual.");
         }
 
-        System.out.println("🧾 Factura guardada correctamente con total Q" + total);
+        // ======== CALCULOS =========
+        double iva = OperacionesNegocio.calcularIVA(subtotal);
+        double totalConIVA = OperacionesNegocio.calcularTotalConIVA(subtotal);
+        double totalConDescuento = OperacionesNegocio.aplicarDescuento(totalConIVA, descuentoPorcentaje);
+        double descuento = totalConIVA - totalConDescuento;
+
+        factura.setSubtotal(subtotal);
+        factura.setIva(iva);
+        factura.setDescuentoPorcentaje(descuentoPorcentaje);
+        factura.setDescuento(descuento);
+        factura.setTotalFactura(totalConDescuento);
+        factura.setMonto(totalConDescuento);
+
+        Factura guardada = facturaRepository.save(factura);
+
+        // Guarda pedidos en memoria para la respuesta
+        guardada.setPedidos(pedidosAsociados);
+
+        // Marcar pedidos como FACTURADO
+        for (PedidoReferencia ref : pedidosAsociados) {
+            Long pId = (ref.getPedidoId() != null) ? ref.getPedidoId() : ref.getId();
+            if (pId != null) {
+                pedidoClient.actualizarEstadoPedido(pId, "FACTURADO");
+            }
+        }
+
         return guardada;
     }
 
-    // 🔹 Anular factura (sin eliminar)
     public Factura anularFactura(Long id, String motivo) {
+
         Factura factura = facturaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Factura no encontrada."));
 
-        if ("ANULADA".equalsIgnoreCase(factura.getEstado())) {
+        if ("ANULADA".equalsIgnoreCase(factura.getEstado()))
             throw new IllegalArgumentException("La factura ya está anulada.");
-        }
-
-        if (motivo == null || motivo.isBlank()) {
-            throw new IllegalArgumentException("Debe indicar un motivo para anular la factura.");
-        }
 
         factura.setEstado("ANULADA");
         factura.setMotivoAnulacion(motivo);
 
-        // 🔄 Revertir pedidos a PENDIENTE
-        try {
-            if (factura.getPedidos() != null && !factura.getPedidos().isEmpty()) {
-                for (PedidoReferencia pedido : factura.getPedidos()) {
-                    if (pedido.getPedidoId() != null) {
-                        pedidoClient.actualizarEstadoPedido(pedido.getPedidoId(), "PENDIENTE");
-                        System.out.println("🔁 Pedido " + pedido.getPedidoId() + " devuelto a estado PENDIENTE.");
-                    }
+        if (factura.getPedidos() != null) {
+            for (PedidoReferencia p : factura.getPedidos()) {
+                Long idPedido = (p.getPedidoId() != null) ? p.getPedidoId() : p.getId();
+                if (idPedido != null) {
+                    pedidoClient.actualizarEstadoPedido(idPedido, "PENDIENTE");
                 }
             }
-        } catch (Exception e) {
-            System.err.println("⚠️ No se pudieron revertir los pedidos asociados: " + e.getMessage());
         }
 
-        Factura anulada = facturaRepository.save(factura);
-        System.out.println("❌ Factura #" + id + " anulada con motivo: " + motivo);
-        return anulada;
+        return facturaRepository.save(factura);
     }
 }

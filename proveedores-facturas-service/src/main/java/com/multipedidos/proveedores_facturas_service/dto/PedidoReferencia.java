@@ -5,8 +5,12 @@ import lombok.Data;
 @Data
 public class PedidoReferencia {
 
-    private Long pedidoId;     // ID del pedido
-    private Long clienteId;    // ID del cliente que hizo el pedido
-    private String nombre;     // Nombre o descripción del pedido
-    private double total;      // Total del pedido
+    private Long id;           // ID del pedido (algunos endpoints lo devuelven así)
+    private Long pedidoId;     // compatibilidad con otros DTOs
+    private Long clienteId;    // ID del cliente asociado
+    private String nombre;     // descripción o nombre del pedido
+    private double subtotal;   // subtotal del pedido
+    private double iva;        // IVA aplicado
+    private double descuento;  // descuento aplicado
+    private double total;      // total final del pedido
 }

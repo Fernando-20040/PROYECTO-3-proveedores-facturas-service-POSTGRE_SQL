@@ -1,0 +1,525 @@
+openapi: 3.0.1
+info:
+  title: Componente B - API de Proveedores y Facturas
+  version: 1.0.0
+  description: |
+    API REST para la gestión de proveedores y facturas del sistema de logística Multipedidos.
+    Este componente se integra con el componente de pedidos para generar facturas a partir de pedidos pendientes.
+  contact:
+    name: Equipo Multipedidos
+    email: soporte@multipedidos.local
+servers:
+  - url: http://localhost:8081
+    description: Servidor local de desarrollo - Componente B
+
+tags:
+  - name: Proveedores
+    description: Operaciones relacionadas con la administración de proveedores.
+  - name: Facturas
+    description: Operaciones relacionadas con la creación, consulta y anulación de facturas.
+
+paths:
+  /proveedores:
+    get:
+      tags: [Proveedores]
+      summary: Listar proveedores
+      description: Obtiene la lista completa de proveedores registrados.
+      responses:
+        '200':
+          description: Lista de proveedores encontrada.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Proveedor'
+        '204':
+          description: No hay proveedores registrados.
+        '500':
+          description: Error interno al listar proveedores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Proveedores]
+      summary: Crear proveedor
+      description: Registra un nuevo proveedor en el sistema.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Proveedor'
+            examples:
+              ejemplo:
+                value:
+                  nombre: "Proveedor XYZ"
+                  correo: "contacto@proveedorxyz.com"
+                  telefono: "5551239999"
+                  direccion: "Parque Industrial, Bodega 12"
+      responses:
+        '201':
+          description: Proveedor creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: Datos de proveedor inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno al crear el proveedor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /proveedores/{id}:
+    get:
+      tags: [Proveedores]
+      summary: Obtener proveedor por ID
+      description: Devuelve la información de un proveedor específico.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único del proveedor.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Proveedor encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '404':
+          description: Proveedor no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno al obtener el proveedor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Proveedores]
+      summary: Actualizar proveedor
+      description: Actualiza los datos de un proveedor existente.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único del proveedor a actualizar.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Proveedor'
+      responses:
+        '200':
+          description: Proveedor actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: Datos de proveedor inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Proveedor no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno al actualizar el proveedor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Proveedores]
+      summary: Eliminar proveedor
+      description: Elimina un proveedor identificado por su ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único del proveedor a eliminar.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Proveedor eliminado correctamente.
+        '404':
+          description: Proveedor no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: No se puede eliminar el proveedor porque tiene facturas asociadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno al eliminar el proveedor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /facturas:
+    get:
+      tags: [Facturas]
+      summary: Listar facturas
+      description: Obtiene la lista de todas las facturas registradas.
+      responses:
+        '200':
+          description: Lista de facturas encontrada.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Factura'
+        '204':
+          description: No hay facturas registradas.
+        '500':
+          description: Error interno al listar facturas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Facturas]
+      summary: Crear factura
+      description: |
+        Crea una nueva factura para un proveedor, a partir de un conjunto de pedidos pendientes.
+        Puede utilizar un monto manual si no se desea calcular el total desde los pedidos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacturaInput'
+            examples:
+              ejemplo:
+                value:
+                  proveedorId: 1
+                  pedidosIds: [100, 101]
+                  montoManual: 0
+                  descuentoPorcentaje: 5
+      responses:
+        '201':
+          description: Factura creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factura'
+        '400':
+          description: Datos de la factura inválidos o pedidos no válidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Proveedor o pedidos no encontrados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno al crear la factura.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /facturas/detalle/{id}:
+    get:
+      tags: [Facturas]
+      summary: Obtener detalle de factura
+      description: Devuelve la información de una factura, incluyendo la lista de pedidos asociados.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la factura.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Factura encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factura'
+        '404':
+          description: Factura no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno al obtener el detalle de la factura.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /facturas/{id}/anular:
+    put:
+      tags: [Facturas]
+      summary: Anular factura
+      description: |
+        Anula una factura existente, registrando un motivo de anulación.
+        Dependiendo de la lógica de negocio, puede revertir el estado de los pedidos facturados.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador único de la factura a anular.
+          schema:
+            type: integer
+            format: int64
+        - name: motivo
+          in: query
+          required: true
+          description: Motivo de la anulación de la factura.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Factura anulada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factura'
+        '400':
+          description: La factura no puede ser anulada (por ejemplo, ya está anulada).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Factura no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno al anular la factura.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Proveedor:
+      type: object
+      description: Representa un proveedor que emite facturas al sistema.
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único del proveedor.
+          example: 1
+        nombre:
+          type: string
+          description: Nombre del proveedor.
+          example: "Proveedor XYZ"
+        correo:
+          type: string
+          description: Correo electrónico de contacto.
+          example: "contacto@proveedorxyz.com"
+        telefono:
+          type: string
+          description: Número de teléfono del proveedor.
+          example: "5551239999"
+        direccion:
+          type: string
+          description: Dirección física del proveedor.
+          example: "Parque Industrial, Bodega 12"
+    FacturaInput:
+      type: object
+      description: DTO de entrada para crear una nueva factura.
+      properties:
+        proveedorId:
+          type: integer
+          format: int64
+          description: ID del proveedor al que se le generará la factura.
+          example: 1
+        pedidosIds:
+          type: array
+          description: Lista de IDs de pedidos que se incluirán en la factura.
+          items:
+            type: integer
+            format: int64
+          example: [100, 101, 102]
+        montoManual:
+          type: number
+          format: double
+          description: |
+            Monto manual a facturar. Si es mayor que 0, puede sobrescribir el cálculo automático
+            basado en los pedidos.
+          example: 0
+        descuentoPorcentaje:
+          type: number
+          format: double
+          description: Porcentaje de descuento a aplicar sobre el subtotal.
+          example: 5.0
+    PedidoReferencia:
+      type: object
+      description: Información resumida de un pedido asociado a una factura.
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador interno del registro en la base de datos (si aplica).
+          example: 10
+        pedidoId:
+          type: integer
+          format: int64
+          description: ID del pedido en el componente de pedidos.
+          example: 100
+        clienteId:
+          type: integer
+          format: int64
+          description: ID del cliente que realizó el pedido.
+          example: 1
+        nombre:
+          type: string
+          description: Nombre o descripción del pedido.
+          example: "Pedido #100"
+        subtotal:
+          type: number
+          format: double
+          description: Subtotal del pedido.
+          example: 15000.0
+        iva:
+          type: number
+          format: double
+          description: Importe del IVA del pedido.
+          example: 2400.0
+        descuento:
+          type: number
+          format: double
+          description: Importe del descuento aplicado al pedido.
+          example: 1500.0
+        total:
+          type: number
+          format: double
+          description: Importe total del pedido.
+          example: 15900.0
+    Factura:
+      type: object
+      description: Representa una factura registrada en el sistema.
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único de la factura.
+          example: 500
+        proveedorId:
+          type: integer
+          format: int64
+          description: ID del proveedor asociado a la factura.
+          example: 1
+        monto:
+          type: number
+          format: double
+          description: Monto base de la factura.
+          example: 15000.0
+        fecha:
+          type: string
+          format: date
+          description: Fecha de emisión de la factura.
+          example: "2025-11-13"
+        subtotal:
+          type: number
+          format: double
+          description: Subtotal de la factura antes de impuestos y descuentos.
+          example: 15000.0
+        iva:
+          type: number
+          format: double
+          description: Importe del IVA aplicado a la factura.
+          example: 2400.0
+        descuentoPorcentaje:
+          type: number
+          format: double
+          description: Porcentaje de descuento aplicado.
+          example: 5.0
+        descuento:
+          type: number
+          format: double
+          description: Importe del descuento aplicado.
+          example: 750.0
+        totalFactura:
+          type: number
+          format: double
+          description: Importe total de la factura.
+          example: 16650.0
+        estado:
+          type: string
+          description: Estado actual de la factura (ACTIVA, ANULADA, etc.).
+          example: "ACTIVA"
+        motivoAnulacion:
+          type: string
+          description: Motivo de anulación, si la factura está anulada.
+          example: "Error en el monto."
+        pedidoIds:
+          type: string
+          description: Cadena con los IDs de pedidos asociados (si se almacenan como texto).
+          example: "100,101,102"
+        pedidos:
+          type: array
+          description: Lista de pedidos asociados a la factura.
+          items:
+            $ref: '#/components/schemas/PedidoReferencia'
+    ErrorResponse:
+      type: object
+      description: Estructura genérica para respuestas de error.
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Fecha y hora del error.
+          example: "2025-11-13T22:20:00Z"
+        status:
+          type: integer
+          description: Código de estado HTTP.
+          example: 400
+        error:
+          type: string
+          description: Descripción corta del error.
+          example: "Bad Request"
+        message:
+          type: string
+          description: Mensaje detallado del error.
+          example: "Los datos enviados no son válidos."
+        path:
+          type: string
+          description: Ruta del endpoint donde ocurrió el error.
+          example: "/facturas"

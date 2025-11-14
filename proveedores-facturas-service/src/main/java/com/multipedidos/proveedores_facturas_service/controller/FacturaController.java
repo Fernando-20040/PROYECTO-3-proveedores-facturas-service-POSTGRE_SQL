@@ -1,11 +1,13 @@
 package com.multipedidos.proveedores_facturas_service.controller;
 
+import com.multipedidos.proveedores_facturas_service.dto.FacturaInput;
 import com.multipedidos.proveedores_facturas_service.entity.Factura;
 import com.multipedidos.proveedores_facturas_service.service.FacturaService;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/facturas")
@@ -18,34 +20,61 @@ public class FacturaController {
         this.facturaService = facturaService;
     }
 
+    /* ====================== LISTAR TODAS ====================== */
     @GetMapping
-    public List<Factura> listar() {
-        return facturaService.listarFacturas();
+    public ResponseEntity<List<Factura>> listar() {
+        List<Factura> facturas = facturaService.listarFacturas();
+        return facturas.isEmpty()
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.ok(facturas);
     }
 
+    /* ====================== DETALLE ====================== */
     @GetMapping("/detalle/{id}")
     public ResponseEntity<Factura> obtenerDetalle(@PathVariable Long id) {
         Factura factura = facturaService.obtenerFacturaConPedidos(id);
-        if (factura == null) {
-            return ResponseEntity.notFound().build();
+        return factura != null
+                ? ResponseEntity.ok(factura)
+                : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
+
+    /* ====================== CREAR ====================== */
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> crear(@RequestBody FacturaInput input) {
+        try {
+            Factura nueva = facturaService.guardarFactura(input);
+
+            // 🔹 Devuelve JSON completo con la factura creada
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(nueva);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al crear la factura: " + e.getMessage()));
         }
-        return ResponseEntity.ok(factura);
     }
 
-    @PostMapping
-    public ResponseEntity<Factura> crear(@RequestBody Factura factura) {
-        Factura nueva = facturaService.guardarFactura(factura);
-        return ResponseEntity.ok(nueva);
-    }
-
-    // 🔹 Nueva ruta para anular factura con motivo
+    /* ====================== ANULAR ====================== */
     @PutMapping("/{id}/anular")
     public ResponseEntity<?> anularFactura(@PathVariable Long id, @RequestParam String motivo) {
         try {
             Factura anulada = facturaService.anularFactura(id, motivo);
             return ResponseEntity.ok(anulada);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al anular factura: " + e.getMessage()));
         }
     }
 }

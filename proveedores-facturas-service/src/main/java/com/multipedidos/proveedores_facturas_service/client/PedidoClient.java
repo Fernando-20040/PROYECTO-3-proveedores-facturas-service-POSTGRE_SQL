@@ -13,8 +13,6 @@ public class PedidoClient {
 
     private final RestTemplate restTemplate;
 
-    // 🔹 Puedes definir la URL del servicio de pedidos en application.properties:
-    // pedidos.service.url=http://localhost:8080
     @Value("${pedidos.service.url:http://localhost:8080}")
     private String baseUrl;
 
@@ -22,52 +20,39 @@ public class PedidoClient {
         this.restTemplate = restTemplate;
     }
 
-    /**
-     * 🔍 Obtener todos los pedidos de un cliente
-     */
     public List<PedidoReferencia> obtenerPedidosPorCliente(Long clienteId) {
         try {
             String url = baseUrl + "/pedidos/cliente/" + clienteId;
             ResponseEntity<PedidoReferencia[]> response =
                     restTemplate.getForEntity(url, PedidoReferencia[].class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                System.out.println("✅ Pedidos obtenidos del cliente " + clienteId + ": " + response.getBody().length);
-                return Arrays.asList(response.getBody());
-            } else {
-                System.err.println("⚠️ Respuesta vacía o status no OK: " + response.getStatusCode());
-                return Collections.emptyList();
-            }
+            return response.getBody() != null ? Arrays.asList(response.getBody()) : Collections.emptyList();
         } catch (Exception e) {
-            System.err.println("❌ Error al conectar con el servicio de pedidos:");
-            e.printStackTrace();
+            System.err.println("❌ Error al obtener pedidos por cliente: " + e.getMessage());
             return Collections.emptyList();
         }
     }
 
-    /**
-     * 🔄 Marcar un pedido como FACTURADO (usado cuando se crea una factura)
-     */
-    public void marcarPedidoComoFacturado(Long pedidoId) {
+    // 🆕 Obtener un pedido por ID
+    public PedidoReferencia obtenerPedidoPorId(Long pedidoId) {
         try {
-            String url = baseUrl + "/pedidos/" + pedidoId + "/facturar";
-            restTemplate.put(url, null);
-            System.out.println("✅ Pedido " + pedidoId + " marcado como FACTURADO.");
+            String url = baseUrl + "/pedidos/" + pedidoId;
+            ResponseEntity<PedidoReferencia> response =
+                    restTemplate.getForEntity(url, PedidoReferencia.class);
+            return response.getBody();
         } catch (Exception e) {
-            System.err.println("⚠️ No se pudo marcar el pedido " + pedidoId + " como facturado: " + e.getMessage());
+            System.err.println("⚠️ Error al obtener pedido " + pedidoId + ": " + e.getMessage());
+            return null;
         }
     }
 
-    /**
-     * 🔄 Cambiar el estado de un pedido (por ejemplo: PENDIENTE, FACTURADO, ANULADO)
-     */
+    // 🔄 Actualizar estado de un pedido
     public void actualizarEstadoPedido(Long pedidoId, String nuevoEstado) {
         try {
             String url = baseUrl + "/pedidos/" + pedidoId + "/estado?estado=" + nuevoEstado;
             restTemplate.put(url, null);
-            System.out.println("🔁 Estado del pedido " + pedidoId + " actualizado a " + nuevoEstado);
+            System.out.println("🔁 Pedido " + pedidoId + " actualizado a " + nuevoEstado);
         } catch (Exception e) {
-            System.err.println("⚠️ Error al actualizar estado del pedido " + pedidoId + ": " + e.getMessage());
+            System.err.println("⚠️ Error al actualizar estado del pedido: " + e.getMessage());
         }
     }
 }

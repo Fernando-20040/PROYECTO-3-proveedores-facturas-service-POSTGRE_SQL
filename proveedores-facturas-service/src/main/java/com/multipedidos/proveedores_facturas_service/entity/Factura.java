@@ -19,14 +19,21 @@ public class Factura {
     private double monto;
     private LocalDate fecha;
 
-    // 🔹 Estado de la factura: ACTIVA o ANULADA
+    // 🔹 Nuevos campos de desglose
+    private double subtotal;
+    private double iva;
+    private double descuentoPorcentaje;
+    private double descuento;
+    private double totalFactura;
+
     @Column(nullable = false)
-    private String estado = "ACTIVA";
+    private String estado = "ACTIVA"; // ACTIVA o ANULADA
 
-    // 🔹 Motivo de anulación (solo si se anula)
     private String motivoAnulacion;
+    
+    @Column(name = "pedido_ids")
+    private String pedidoIds;
 
-    // 🔹 Lista de pedidos asociados a la factura (no se persiste)
     @Transient
     private List<PedidoReferencia> pedidos;
 }
